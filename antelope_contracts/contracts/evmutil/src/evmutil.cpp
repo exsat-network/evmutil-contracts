@@ -7,7 +7,7 @@
 
 #include <evmutil/reward_helper_bytecode.hpp>
 #include <evmutil/stake_helper_bytecode.hpp>
-#include <erc20/proxy_bytecode.hpp>
+#include <proxy/proxy_bytecode.hpp>
 
 #include <silkworm/core/execution/address.hpp>
 #include <silkworm/core/common/util.hpp>
