@@ -113,7 +113,7 @@ jobs:
           fi
 
   build:
-    name: EOS EVM Bridge Contracts Build & Test
+    name: evmutil Contracts Build & Test
     needs: [d, build-platforms, versions]
     if: always() && needs.d.result == 'success' && (needs.build-platforms.result == 'success' ||  needs.build-platforms.result == 'skipped') && needs.versions.result == 'success'
     strategy:
@@ -124,12 +124,12 @@ jobs:
     container: ${{fromJSON(needs.d.outputs.p)[matrix.platform].image}}
 
     steps:
-      - name: Checkout exsat-evm-bridge-contracts
+      - name: Checkout evmutil-contracts
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: 'recursive'
-          path: exsat-evm-bridge-contracts
+          path: evmutil-contracts
 
       - name: Download CDT
         uses: AntelopeIO/asset-artifact-download-action@v3
@@ -177,9 +177,9 @@ jobs:
           cd build
           echo "EVM_CONTRACT=$(pwd)" >> "$GITHUB_OUTPUT"
 
-      - name: Build EVM Bridge Contracts
+      - name: Build evmutil Contracts
         run: |
-          pushd exsat-evm-bridge-contracts
+          pushd evmutil-contracts
           cmake -B build -Deosevm_DIR=${{ steps.evm-contract.outputs.EVM_CONTRACT }}
           cmake --build build -- -j
           tar -pc build | zstd --long -T0 -9 > build.tar.zst
@@ -188,10 +188,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: builddir
-          path: exsat-evm-bridge-contracts/build.tar.zst
+          path: evmutil-contracts/build.tar.zst
           compression-level: 0
 
       - name: EVM Bridge Contracts Tests
         run: |
-          pushd exsat-evm-bridge-contracts/build
+          pushd evmutil-contracts/build
           ctest --output-on-failure
