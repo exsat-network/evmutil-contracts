@@ -7,6 +7,7 @@
 
 #include <evmutil/reward_helper_bytecode.hpp>
 #include <evmutil/stake_helper_bytecode.hpp>
+#include <evmutil/gas_funds_bytecode.hpp>
 #include <proxy/proxy_bytecode.hpp>
 
 #include <silkworm/core/execution/address.hpp>
@@ -796,6 +797,47 @@ void evmutil::upstakeimpl(std::string proxy_address) {
 
     evm_runtime::call_action call_act(config.evm_account, {{receiver_account(), "active"_n}});
     call_act.send(receiver_account(), *address_bytes, value_zero, call_data, config.evm_gaslimit);
+}
+
+void evmutil::dpygasfunds() {
+    require_auth(get_self());
+
+
+    bytes call_data;
+
+    auto reserved_addr = silkworm::make_reserved_address(receiver_account().value);
+    initialize_data(call_data, solidity::gasfunds::bytecode);
+
+    bytes to = {};
+    bytes value_zero;
+    value_zero.resize(32, 0);
+
+    uint64_t next_nonce = get_next_nonce();
+
+    // required account opened in evm_runtime
+    config_t config = get_config();
+    evm_runtime::call_action call_act(config.evm_account, {{receiver_account(), "active"_n}});
+    call_act.send(receiver_account(), to, value_zero, call_data, config.evm_init_gaslimit);
+
+    evmc::address impl_addr = silkworm::create_address(reserved_addr, next_nonce);
+
+    helpers_t helpers = get_helpers();
+    helpers.gas_funds_address.resize(kAddressLength);
+    memcpy(&(helpers.gas_funds_address[0]), impl_addr.bytes, kAddressLength);
+    set_helpers(helpers);
+}
+
+void evmutil::setgasfunds(std::string impl_address) {
+    require_auth(get_self());
+    auto address_bytes = from_hex(impl_address);
+    eosio::check(!!address_bytes, "implementation address must be valid 0x EVM address");
+    eosio::check(address_bytes->size() == kAddressLength, "invalid length of implementation address");
+
+    helpers_t helpers = get_helpers();
+
+    helpers.gas_funds_address.resize(kAddressLength);
+    memcpy(&(helpers.gas_funds_address[0]), address_bytes->data(), kAddressLength);
+    set_helpers(helpers);
 }
 
 inline eosio::name evmutil::receiver_account()const {
