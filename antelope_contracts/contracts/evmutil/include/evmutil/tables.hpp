@@ -26,7 +26,7 @@ namespace evmutil {
         binary_extension<bytes> btc_deposit_address;
         binary_extension<bytes> xsat_deposit_address;
         binary_extension<bytes> gas_funds_address;
-        EOSLIB_SERIALIZE(helpers_t, (reward_helper_address)(btc_deposit_address)(xsat_deposit_address));
+        EOSLIB_SERIALIZE(helpers_t, (reward_helper_address)(btc_deposit_address)(xsat_deposit_address)(gas_funds_address);
     };
     typedef eosio::singleton<"helpers"_n, helpers_t> helpers_singleton_t;
     struct [[eosio::table("tokens")]] [[eosio::contract("evmutil")]] token_t {

@@ -182,6 +182,28 @@ class [[eosio::contract]] evmutil : public contract {
      */
     [[eosio::action]] void dpyvlddepsat(std::string token_address, const eosio::asset &dep_fee, uint8_t erc20_precision);
 
+     /**
+     * @brief Deploy the contract for gas fund in EVM.
+     *        Only works with certain leap configs.
+     *        Use setgasfunds() instead when this action does not work.
+     *
+     * @auth Self
+     *
+     */
+     [[eosio::action]] void dpygasfunds();
+
+     /**
+     * @brief Set gas fund address
+     *
+     * @auth Self
+     *
+     * @param impl_address - The
+     */
+     [[eosio::action]] void setgasfunds(std::string impl_address);
+
+
+
+
     // Public Helpers
     config_t get_config() const;
     void set_config(const config_t &v);
