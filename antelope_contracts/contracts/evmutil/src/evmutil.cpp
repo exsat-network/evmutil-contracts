@@ -622,6 +622,9 @@ void evmutil::onbridgemsg(const bridge_message_t &message) {
         // Reuse old logic. We KNOW the target is XSAT and delta-precision is 10
         handle_endorser_stakes(msg, 10, true, true);
     }
+    else if (helpers.gas_funds_address && helpers.gas_funds_address.value() == msg.sender){
+        handle_gasfunds(msg);
+    }
     else {
         checksum256 addr_key = make_key(msg.sender);
         token_table_t token_table(_self, _self.value);
@@ -830,14 +833,13 @@ void evmutil::dpygasfunds() {
 
 void evmutil::setgasfunds(std::string impl_address) {
     require_auth(get_self());
-    auto address_bytes = from_hex(impl_address);
-    eosio::check(!!address_bytes, "implementation address must be valid 0x EVM address");
-    eosio::check(address_bytes->size() == kAddressLength, "invalid length of implementation address");
+    auto address_bytes_opt = from_hex(impl_address);
+    eosio::check(!!address_bytes_opt, "implementation address must be valid 0x EVM address");
+    eosio::check(address_bytes_opt->size() == kAddressLength, "invalid length of implementation address");
 
     helpers_t helpers = get_helpers();
-
-    bytes gas_funds_bytes(impl_address.begin(), impl_address.end());
-    helpers.gas_funds_address = gas_funds_bytes;
+    const auto& address_bytes = address_bytes_opt.value();
+    helpers.gas_funds_address = bytes(address_bytes.begin(), address_bytes.end());
 
     set_helpers(helpers);
 }
@@ -849,8 +851,8 @@ void evmutil::handle_gasfunds(const bridge_message_v0 &msg) {
     memcpy((void *)&app_type, (const void *)&(msg.data[0]), sizeof(app_type));
 
     // 0x42b3c021 : 21c0b342 : claim(address,address)
-    // 0x33f58043 : 07b66fc1 : enfClaim(address)
-    // 0x29721a03 : 60b57b3d : ramsClaim(address)
+    // 0x4380f533 : 33f58043 : enfClaim(address)
+    // 0x031a7229 : 29721a03 : ramsClaim(address)
     if (app_type == 0x42b3c021) {
         check(msg.data.size() >= 4 + 32 /*to*/ + 32 /*from*/ ,
             "not enough data in bridge_message_v0 of application type 0x42b3c021");
@@ -863,7 +865,7 @@ void evmutil::handle_gasfunds(const bridge_message_v0 &msg) {
 
         gasfunds::evmclaim_action evmclaim_act("gasfundofsat", {{receiver_account(), "active"_n}});
         evmclaim_act.send(get_self(), make_key160(dest_acc.bytes, kAddressLength), make_key160(sender_addr.bytes, kAddressLength), 0);
-    } else if (app_type == 0x33f58043) /* enfClaim(address) */ {
+    } else if (app_type == 0x4380f533) /* enfClaim(address) */ {
         check(msg.data.size() >= 4 + 32 /*from*/,
             "not enough data in bridge_message_v0 of application type 0x33f58043");
 
@@ -878,7 +880,7 @@ void evmutil::handle_gasfunds(const bridge_message_v0 &msg) {
         evmenfclaim_act.send(get_self(), make_key160(dest_acc.bytes, kAddressLength));
 
 
-    } else if (app_type == 0x29721a03) /* ramsClaim(address) */{
+    } else if (app_type == 0x031a7229) /* ramsClaim(address) */{
         check(msg.data.size() >= 4 + 32 /*from*/,
             "not enough data in bridge_message_v0 of application type 0x29721a03");
 

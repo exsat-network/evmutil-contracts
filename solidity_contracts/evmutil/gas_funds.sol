@@ -10,8 +10,8 @@ contract GasFunds  {
     address public evmAddress;
 
     constructor() {
-        linkedEOSAccountName = "gasfund.xsat";
-        linkedEOSAddress = 0xBBbbBBBBbBbBBBbBbBBbBbBb61B0Bd4D20EE0D90;
+        linkedEOSAccountName = "evmutil.xsat";
+        linkedEOSAddress = 0xbbBbbbBbbBBbBBbBBBbbbBbB5530eA015740a800;
         evmAddress = 0xBBbBbbbbbBbbbbBBBBbbbBbb56e40ee0D9000000;
     }
 
@@ -28,20 +28,20 @@ contract GasFunds  {
         if(!success) { revert(); }
     }
 
-    function enfClaim(address _target) external {
+    function enfClaim() external {
         // The action is aynchronously viewed from EVM and looks UNSAFE.
         // BUT in fact the call will be executed as inline action.
         // If the cross chain call fail, the whole tx including the EVM action will be rejected.
-        bytes memory receiver_msg = abi.encodeWithSignature("enfclaim(address)", msg.sender);
+        bytes memory receiver_msg = abi.encodeWithSignature("enfClaim(address)", msg.sender);
         (bool success, ) = evmAddress.call(abi.encodeWithSignature("bridgeMsgV0(string,bool,bytes)", linkedEOSAccountName, true, receiver_msg ));
         if(!success) { revert(); }
     }
 
-    function ramsClaim(address _target) external {
+    function ramsClaim() external {
         // The action is aynchronously viewed from EVM and looks UNSAFE.
         // BUT in fact the call will be executed as inline action.
         // If the cross chain call fail, the whole tx including the EVM action will be rejected.
-        bytes memory receiver_msg = abi.encodeWithSignature("ramsclaim(address)", msg.sender);
+        bytes memory receiver_msg = abi.encodeWithSignature("ramsClaim(address)", msg.sender);
         (bool success, ) = evmAddress.call(abi.encodeWithSignature("bridgeMsgV0(string,bool,bytes)", linkedEOSAccountName, true, receiver_msg ));
         if(!success) { revert(); }
     }
