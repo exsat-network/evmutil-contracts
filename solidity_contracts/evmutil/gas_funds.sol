@@ -32,16 +32,16 @@ contract GasFunds  {
         // The action is aynchronously viewed from EVM and looks UNSAFE.
         // BUT in fact the call will be executed as inline action.
         // If the cross chain call fail, the whole tx including the EVM action will be rejected.
-        bytes memory receiver_msg = abi.encodeWithSignature("evmenfclaim(address)", msg.sender);
+        bytes memory receiver_msg = abi.encodeWithSignature("enfclaim(address)", msg.sender);
         (bool success, ) = evmAddress.call(abi.encodeWithSignature("bridgeMsgV0(string,bool,bytes)", linkedEOSAccountName, true, receiver_msg ));
         if(!success) { revert(); }
     }
 
-    function ramsClaim(address _target, address _proxy) external {
+    function ramsClaim(address _target) external {
         // The action is aynchronously viewed from EVM and looks UNSAFE.
         // BUT in fact the call will be executed as inline action.
         // If the cross chain call fail, the whole tx including the EVM action will be rejected.
-        bytes memory receiver_msg = abi.encodeWithSignature("evmramsclaim(address)", msg.sender);
+        bytes memory receiver_msg = abi.encodeWithSignature("ramsclaim(address)", msg.sender);
         (bool success, ) = evmAddress.call(abi.encodeWithSignature("bridgeMsgV0(string,bool,bytes)", linkedEOSAccountName, true, receiver_msg ));
         if(!success) { revert(); }
     }

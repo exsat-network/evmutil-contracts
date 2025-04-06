@@ -223,6 +223,7 @@ private:
     void handle_endorser_stakes(const bridge_message_v0 &msg, uint64_t delta_precision, bool is_deposit, bool is_xsat);
     void handle_utxo_access(const bridge_message_v0 &msg);
     void handle_rewards(const bridge_message_v0 &msg);
+    void handle_gasfunds(const bridge_message_v0& msg);
 
     eosio::name receiver_account()const;
 };
