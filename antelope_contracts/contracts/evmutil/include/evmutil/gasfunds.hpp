@@ -8,7 +8,7 @@
 using namespace eosio;
 using namespace std;
 
-namespace gasfunds{
+namespace gasfunds {
     /**
      * @brief GasFund Contract
      *
@@ -200,7 +200,7 @@ namespace gasfunds{
         void token_transfer(const name& from, const name& to, const extended_asset& value, const string& memo);
     };
 
-using evmclaim_action = eosio::action_wrapper<"evmclaim"_n, &gasfund::evmclaim>;
-using evmenfclaim_action = eosio::action_wrapper<"evmenfclaim"_n, &gasfund::evmenfclaim>;
-using evmramsclaim_action = eosio::action_wrapper<"evmramsclaim"_n, &gasfund::evmramsclaim>;
+    using evmclaim_action = action_wrapper<"evmclaim"_n, &gasfund::evmclaim>;
+    using evmenfclaim_action = action_wrapper<"evmenfclaim"_n, &gasfund::evmenfclaim>;
+    using evmramsclaim_action = action_wrapper<"evmramsclaim"_n, &gasfund::evmramsclaim>;
 }
