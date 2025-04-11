@@ -5,6 +5,7 @@
 #include <evmutil/endrmng.hpp>
 #include <evmutil/gasfunds.hpp>
 #include <evmutil/poolreg.hpp>
+#include <evmutil/types.hpp>
 
 #include <evmutil/reward_helper_bytecode.hpp>
 #include <evmutil/stake_helper_bytecode.hpp>
@@ -805,11 +806,13 @@ void evmutil::upstakeimpl(std::string proxy_address) {
 
 void evmutil::dpygasfunds() {
     require_auth(get_self());
+    config_t config = get_config();
 
-
-    /* bytes call_data;
+    bytes call_data;
 
     auto reserved_addr = silkworm::make_reserved_address(receiver_account().value);
+
+
     initialize_data(call_data, solidity::gasfunds::bytecode);
 
     bytes to = {};
@@ -819,16 +822,29 @@ void evmutil::dpygasfunds() {
     uint64_t next_nonce = get_next_nonce();
 
     // required account opened in evm_runtime
-    config_t config = get_config();
     evm_runtime::call_action call_act(config.evm_account, {{receiver_account(), "active"_n}});
+
     call_act.send(receiver_account(), to, value_zero, call_data, config.evm_init_gaslimit);
 
     evmc::address impl_addr = silkworm::create_address(reserved_addr, next_nonce);
 
     helpers_t helpers = get_helpers();
-    helpers.gas_funds_address.resize(kAddressLength);
-    memcpy(&(helpers.gas_funds_address[0]), impl_addr.bytes, kAddressLength);
-    set_helpers(helpers); */
+
+    bytes impl_addr_bytes;
+    impl_addr_bytes.resize(kAddressLength, 0);
+    memcpy(&(impl_addr_bytes[0]), impl_addr.bytes, kAddressLength);
+    helpers.gas_funds_address = impl_addr_bytes;
+    set_helpers(helpers);
+}
+void evmutil::initgasfund() {
+    require_auth(get_self());
+
+    config_t config = get_config();
+
+    if (!config.gasfund_account.has_value()) {
+        config.gasfund_account = default_gasfund_account;
+    }
+    set_config(config);
 }
 
 void evmutil::setgasfunds(std::string impl_address) {
@@ -863,7 +879,7 @@ void evmutil::handle_gasfunds(const bridge_message_v0 &msg) {
         evmc::address sender_addr;
         readEvmAddress(msg.data, 4 + 32, sender_addr);
 
-        gasfunds::evmclaim_action evmclaim_act(config.gasfund_account, {{receiver_account(), "active"_n}});
+        gasfunds::evmclaim_action evmclaim_act(config.gasfund_account.value(), {{receiver_account(), "active"_n}});
         evmclaim_act.send(get_self(), make_key160(msg.sender),make_key160(sender_addr.bytes, kAddressLength), dest_acc, 0);
     } else if (app_type == 0x4380f533) /* enfClaim(address) */ {
         check(msg.data.size() >= 4 + 32 /*from*/,
@@ -875,7 +891,7 @@ void evmutil::handle_gasfunds(const bridge_message_v0 &msg) {
         // Note that there's a second argument in the call for the sender address.
         // We currently do not use it. But we collect in the bridge call in case we want to add more sanity checks here.
 
-        gasfunds::evmenfclaim_action evmenfclaim_act(config.gasfund_account, {{receiver_account(), "active"_n}});
+        gasfunds::evmenfclaim_action evmenfclaim_act(config.gasfund_account.value(), {{receiver_account(), "active"_n}});
         // seems hit some bug/limitation in the template, need an explicit conversion here.
         evmenfclaim_act.send(get_self(), make_key160(msg.sender), make_key160(dest_acc.bytes, kAddressLength));
 
@@ -890,7 +906,7 @@ void evmutil::handle_gasfunds(const bridge_message_v0 &msg) {
         // Note that there's a second argument in the call for the sender address.
         // We currently do not use it. But we collect in the bridge call in case we want to add more sanity checks here.
 
-        gasfunds::evmramsclaim_action evmramsclaim_act(config.gasfund_account, {{receiver_account(), "active"_n}});
+        gasfunds::evmramsclaim_action evmramsclaim_act(config.gasfund_account.value(), {{receiver_account(), "active"_n}});
         // seems hit some bug/limitation in the template, need an explicit conversion here.
         evmramsclaim_act.send(get_self(), make_key160(msg.sender), make_key160(dest_acc.bytes, kAddressLength));
     }

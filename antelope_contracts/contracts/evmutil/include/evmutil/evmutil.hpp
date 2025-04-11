@@ -201,6 +201,7 @@ class [[eosio::contract]] evmutil : public contract {
      */
      [[eosio::action]] void setgasfunds(std::string impl_address);
 
+    [[eosio::action]] void initgasfund();
 
 
 
