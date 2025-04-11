@@ -58,8 +58,9 @@ namespace evmutil {
         eosio::symbol evm_gas_token_symbol = default_native_token_symbol;
         eosio::name   endrmng_account = default_endrmng_account;
         eosio::name   poolreg_account = default_poolreg_account;
+        eosio::name   gasfund_account = default_gasfund_account;
 
-        EOSLIB_SERIALIZE(config_t, (evm_gaslimit)(evm_init_gaslimit)(evm_account)(evm_gas_token_symbol)(endrmng_account)(poolreg_account));
+        EOSLIB_SERIALIZE(config_t, (evm_gaslimit)(evm_init_gaslimit)(evm_account)(evm_gas_token_symbol)(endrmng_account)(poolreg_account)(gasfund_account));
     };
     typedef eosio::singleton<"config"_n, config_t> config_singleton_t;
 

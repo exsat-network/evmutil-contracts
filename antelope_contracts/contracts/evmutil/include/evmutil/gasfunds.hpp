@@ -15,7 +15,7 @@ namespace gasfunds {
      * This contract is responsible for calculating and distributing rewards on the blockchain,
      * including regular block rewards and EVM gas fee rewards
      */
-    class [[eosio::contract("gasfundofsat")]] gasfund : public contract {
+    class [[eosio::contract("gasfund.xsat")]] gasfund : public contract {
       public:
         using contract::contract;
 
@@ -100,13 +100,13 @@ namespace gasfunds {
         void claim(const name& receiver, const uint8_t receiver_type);
 
         [[eosio::action]]
-        void evmclaim(const name& caller, const checksum160& sender, const checksum160& receiver, const uint8_t receiver_type);
+        void evmclaim(const name& caller, const checksum160& proxy, const checksum160& sender, uint64_t receiver, const uint8_t receiver_type);
 
         [[eosio::action]]
-        void evmenfclaim(const name& caller, const checksum160& sender);
+        void evmenfclaim(const name& caller, const checksum160& proxy, const checksum160& sender);
 
         [[eosio::action]]
-        void evmramsclaim(const name& caller, const checksum160& sender);
+        void evmramsclaim(const name& caller, const checksum160& proxy, const checksum160& sender);
 
         /**
          * @brief Set configuration
