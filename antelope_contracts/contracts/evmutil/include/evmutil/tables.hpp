@@ -6,7 +6,6 @@
 #include <eosio/singleton.hpp>
 #include <eosio/binary_extension.hpp>
 
-#include <evmutil/types.hpp>
 
 namespace evmutil {
 
@@ -29,6 +28,7 @@ namespace evmutil {
         EOSLIB_SERIALIZE(helpers_t, (reward_helper_address)(btc_deposit_address)(xsat_deposit_address)(gas_funds_address));
     };
     typedef eosio::singleton<"helpers"_n, helpers_t> helpers_singleton_t;
+
     struct [[eosio::table("tokens")]] [[eosio::contract("evmutil")]] token_t {
         uint64_t id = 0;
         bytes address;  // <-- proxy contract addr
@@ -58,10 +58,12 @@ namespace evmutil {
         eosio::symbol evm_gas_token_symbol = default_native_token_symbol;
         eosio::name   endrmng_account = default_endrmng_account;
         eosio::name   poolreg_account = default_poolreg_account;
-        eosio::name   gasfund_account = default_gasfund_account;
+        binary_extension<eosio::name> gasfund_account{default_gasfund_account};
+
 
         EOSLIB_SERIALIZE(config_t, (evm_gaslimit)(evm_init_gaslimit)(evm_account)(evm_gas_token_symbol)(endrmng_account)(poolreg_account)(gasfund_account));
     };
     typedef eosio::singleton<"config"_n, config_t> config_singleton_t;
 
 } // namespace evmutil
+#include <evmutil/types.hpp>
