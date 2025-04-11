@@ -19,11 +19,11 @@ contract GasFunds  {
         return ((uint160(addr) & uint160(0xFffFfFffffFfFFffffFFFffF0000000000000000)) == uint160(0xBBbbBbBbbBbbBbbbBbbbBBbb0000000000000000));
     }
 
-    function claim(address _target) external {
+    function claim(address _target,uint8 _receiver_type) external {
         // The action is aynchronously viewed from EVM and looks UNSAFE.
         // BUT in fact the call will be executed as inline action.
         // If the cross chain call fail, the whole tx including the EVM action will be rejected.
-        bytes memory receiver_msg = abi.encodeWithSignature("claim(address,address)", _target, msg.sender);
+        bytes memory receiver_msg = abi.encodeWithSignature("claim(address,address,uint8)", _target, msg.sender, _receiver_type);
         (bool success, ) = evmAddress.call(abi.encodeWithSignature("bridgeMsgV0(string,bool,bytes)", linkedEOSAccountName, true, receiver_msg ));
         if(!success) { revert(); }
     }

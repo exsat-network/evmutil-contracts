@@ -866,10 +866,10 @@ void evmutil::handle_gasfunds(const bridge_message_v0 &msg) {
     uint32_t app_type = 0;
     memcpy((void *)&app_type, (const void *)&(msg.data[0]), sizeof(app_type));
 
-    // 0x42b3c021 : 21c0b342 : claim(address,address)
+    // 0x136f93b4 : 0xb4936f13 : claim(address,address,uint8)
     // 0x4380f533 : 33f58043 : enfClaim(address)
     // 0x031a7229 : 29721a03 : ramsClaim(address)
-    if (app_type == 0x42b3c021) {
+    if (app_type == 0x136f93b4) {
         check(msg.data.size() >= 4 + 32 /*to*/ + 32 /*from*/ ,
             "not enough data in bridge_message_v0 of application type 0x42b3c021");
 
@@ -879,8 +879,11 @@ void evmutil::handle_gasfunds(const bridge_message_v0 &msg) {
         evmc::address sender_addr;
         readEvmAddress(msg.data, 4 + 32, sender_addr);
 
+        intx::uint256 receiver_type;
+        readUint256(msg.data, 4 + 32 + 32, receiver_type);
+
         gasfunds::evmclaim_action evmclaim_act(config.gasfund_account.value(), {{receiver_account(), "active"_n}});
-        evmclaim_act.send(get_self(), make_key160(msg.sender),make_key160(sender_addr.bytes, kAddressLength), dest_acc, 0);
+        evmclaim_act.send(get_self(), make_key160(msg.sender),make_key160(sender_addr.bytes, kAddressLength), dest_acc, receiver_type);
     } else if (app_type == 0x4380f533) /* enfClaim(address) */ {
         check(msg.data.size() >= 4 + 32 /*from*/,
             "not enough data in bridge_message_v0 of application type 0x33f58043");
