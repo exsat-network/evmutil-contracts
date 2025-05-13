@@ -46,7 +46,7 @@ namespace gasfunds {
         void evmramsclaim(const name& caller, const checksum160& proxy, const checksum160& sender);
     };
 
-    using evmclaim_action = action_wrapper<"evmclaim"_n, &gasfund::evmclaim>;
-    using evmenfclaim_action = action_wrapper<"evmenfclaim"_n, &gasfund::evmenfclaim>;
-    using evmramsclaim_action = action_wrapper<"evmramsclaim"_n, &gasfund::evmramsclaim>;
+    using evmclaim_action = action_wrapper<"evmclaim"_n, &contract_actions::evmclaim>;
+    using evmenfclaim_action = action_wrapper<"evmenfclaim"_n, &contract_actions::evmenfclaim>;
+    using evmramsclaim_action = action_wrapper<"evmramsclaim"_n, &contract_actions::evmramsclaim>;
 }
