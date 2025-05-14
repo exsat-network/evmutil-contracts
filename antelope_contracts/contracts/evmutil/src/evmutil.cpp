@@ -3,10 +3,13 @@
 #include <evmutil/hex.hpp>
 #include <evmutil/evm_runtime.hpp>
 #include <evmutil/endrmng.hpp>
+#include <evmutil/gasfunds.hpp>
 #include <evmutil/poolreg.hpp>
+#include <evmutil/types.hpp>
 
 #include <evmutil/reward_helper_bytecode.hpp>
 #include <evmutil/stake_helper_bytecode.hpp>
+#include <evmutil/gas_funds_bytecode.hpp>
 #include <proxy/proxy_bytecode.hpp>
 
 #include <silkworm/core/execution/address.hpp>
@@ -122,7 +125,7 @@ void evmutil::set_helpers(const helpers_t &v) {
 }
 
 // lookup nonce from the multi_index table of evm contract and assert
-uint64_t evmutil::get_next_nonce() { 
+uint64_t evmutil::get_next_nonce() {
 
     config_t config = get_config();
 
@@ -146,7 +149,7 @@ void evmutil::dpystakeimpl() {
     initialize_data(call_data, solidity::stakehelper::bytecode);
 
     bytes to = {};
-    bytes value_zero; 
+    bytes value_zero;
     value_zero.resize(32, 0);
 
     uint64_t next_nonce = get_next_nonce();
@@ -177,7 +180,7 @@ void evmutil::dpyrwdhelper() {
     initialize_data(call_data, solidity::rewardhelper::bytecode);
 
     bytes to = {};
-    bytes value_zero; 
+    bytes value_zero;
     value_zero.resize(32, 0);
 
     uint64_t next_nonce = get_next_nonce();
@@ -187,8 +190,8 @@ void evmutil::dpyrwdhelper() {
     evm_runtime::call_action call_act(config.evm_account, {{receiver_account(), "active"_n}});
     call_act.send(receiver_account(), to, value_zero, call_data, config.evm_init_gaslimit);
 
-    evmc::address impl_addr = silkworm::create_address(reserved_addr, next_nonce); 
-    
+    evmc::address impl_addr = silkworm::create_address(reserved_addr, next_nonce);
+
     helpers_t helpers = get_helpers();
     helpers.reward_helper_address.resize(kAddressLength);
     memcpy(&(helpers.reward_helper_address[0]), impl_addr.bytes, kAddressLength);
@@ -229,7 +232,7 @@ void evmutil::dpyvlddepbtc(std::string token_address, const eosio::asset &dep_fe
 
     helpers_t helpers = get_helpers();
     eosio::check(!helpers.btc_deposit_address || helpers.btc_deposit_address.value().empty(), "cannot deploy again");
-    
+
     impl_contract_table_t contract_table(_self, _self.value);
     eosio::check(contract_table.begin() != contract_table.end(), "no implementaion contract available");
     auto contract_itr = contract_table.end();
@@ -241,7 +244,7 @@ void evmutil::dpyvlddepbtc(std::string token_address, const eosio::asset &dep_fe
 
     bytes proxy_contract_addr = deploy_stake_helper_proxy(*token_address_bytes, contract_itr->address, dep_fee, erc20_precision, false, true);
 
-    
+
     helpers.btc_deposit_address = proxy_contract_addr;
     set_helpers(helpers);
 }
@@ -252,7 +255,7 @@ void evmutil::dpyvlddepsat(std::string token_address, const eosio::asset &dep_fe
     helpers_t helpers = get_helpers();
 
     eosio::check(!helpers.xsat_deposit_address || helpers.xsat_deposit_address.value().empty(), "cannot deploy again");
-    
+
     impl_contract_table_t contract_table(_self, _self.value);
     eosio::check(contract_table.begin() != contract_table.end(), "no implementaion contract available");
     auto contract_itr = contract_table.end();
@@ -272,7 +275,7 @@ bytes evmutil::deploy_stake_helper_proxy(const bytes& erc20_address_bytes, const
     eosio::check(impl_address_bytes.size() == kAddressLength, "invalid length of implementation address");
 
     config_t config = get_config();
-    
+
     // 2^(256-64) = 6.2e+57, so the precision diff is at most 57
     eosio::check(erc20_precision >= dep_fee.symbol.precision() &&
     erc20_precision <= dep_fee.symbol.precision() + 57, "evmutil precision out of range");
@@ -317,11 +320,11 @@ bytes evmutil::deploy_stake_helper_proxy(const bytes& erc20_address_bytes, const
             ds.insert(ds.end(), name_, name_ + sizeof(name_));
         }
     };
-    
+
     constructor_data.insert(constructor_data.end(), 32 - kAddressLength, 0);  // padding for address
-    constructor_data.insert(constructor_data.end(), reserved_addr.bytes, reserved_addr.bytes + kAddressLength); 
+    constructor_data.insert(constructor_data.end(), reserved_addr.bytes, reserved_addr.bytes + kAddressLength);
     constructor_data.insert(constructor_data.end(), 32 - kAddressLength, 0);  // padding for address
-    constructor_data.insert(constructor_data.end(), evm_reserved_addr.bytes, evm_reserved_addr.bytes + kAddressLength); 
+    constructor_data.insert(constructor_data.end(), evm_reserved_addr.bytes, evm_reserved_addr.bytes + kAddressLength);
     constructor_data.insert(constructor_data.end(), 32 - kAddressLength, 0);  // padding for address
     constructor_data.insert(constructor_data.end(), erc20_address_bytes.begin(), erc20_address_bytes.end());
 
@@ -334,7 +337,7 @@ bytes evmutil::deploy_stake_helper_proxy(const bytes& erc20_address_bytes, const
     pack_string(call_data, constructor_data);    // offset 64
 
     bytes to = {};
-    bytes value_zero; 
+    bytes value_zero;
     value_zero.resize(32, 0);
 
     uint64_t next_nonce = get_next_nonce();
@@ -345,14 +348,14 @@ bytes evmutil::deploy_stake_helper_proxy(const bytes& erc20_address_bytes, const
 
     evmc::address proxy_contract_addr = silkworm::create_address(reserved_addr, next_nonce);
     bytes result;
-    result.resize(kAddressLength, 0); 
+    result.resize(kAddressLength, 0);
     memcpy(&(result[0]), proxy_contract_addr.bytes, kAddressLength);
     return result;
 }
 
 void evmutil::regtokenwithcodebytes(const bytes& erc20_address_bytes, const bytes& impl_address_bytes, const eosio::asset& dep_fee, uint8_t erc20_precision) {
     require_auth(get_self());
-    
+
     token_table_t token_table(_self, _self.value);
     auto index_symbol = token_table.get_index<"by.tokenaddr"_n>();
     check(index_symbol.find(make_key(erc20_address_bytes)) == index_symbol.end(), "token already registered");
@@ -384,7 +387,7 @@ void evmutil::regwithcode(std::string token_address, std::string impl_address, c
 
 void evmutil::regtoken(std::string token_address, const eosio::asset &dep_fee, uint8_t erc20_precision) {
     require_auth(get_self());
-    
+
     impl_contract_table_t contract_table(_self, _self.value);
     eosio::check(contract_table.begin() != contract_table.end(), "no implementaion contract available");
     auto contract_itr = contract_table.end();
@@ -426,7 +429,7 @@ void evmutil::handle_endorser_stakes(const bridge_message_v0 &msg, uint64_t delt
     // 0xac2fd4fc : fcd42fac : claim2(address,address,uint256)
 
     if (app_type == 0x42b3c021) /* claim(address,address) */{
-        check(msg.data.size() >= 4 + 32 /*to*/ + 32 /*from*/, 
+        check(msg.data.size() >= 4 + 32 /*to*/ + 32 /*from*/,
             "not enough data in bridge_message_v0 of application type 0x653332e5");
 
         uint64_t dest_acc;
@@ -439,7 +442,7 @@ void evmutil::handle_endorser_stakes(const bridge_message_v0 &msg, uint64_t delt
         endrmng::evmclaim_action evmclaim_act(config.endrmng_account, {{receiver_account(), "active"_n}});
         evmclaim_act.send(get_self(), make_key160(msg.sender), make_key160(sender_addr.bytes, kAddressLength), dest_acc);
     } else if (app_type == 0xac2fd4fc) /* claim2(address,address,uint256) */{
-        check(msg.data.size() >= 4 + 32 /*to*/ + 32 /*from*/ + 32 /*donate_rate*/, 
+        check(msg.data.size() >= 4 + 32 /*to*/ + 32 /*from*/ + 32 /*donate_rate*/,
             "not enough data in bridge_message_v0 of application type 0xac2fd4fc");
 
         uint64_t dest_acc;
@@ -458,7 +461,7 @@ void evmutil::handle_endorser_stakes(const bridge_message_v0 &msg, uint64_t delt
         endrmng::evmclaim2_action evmclaim2_act(config.endrmng_account, {{receiver_account(), "active"_n}});
         evmclaim2_act.send(get_self(), make_key160(msg.sender), make_key160(sender_addr.bytes, kAddressLength), dest_acc, donate_rate);
     } else if (app_type == 0xdc4653f4) /* deposit(address,uint256,address) */{
-        check(msg.data.size() >= 4 + 32 + 32 + 32, 
+        check(msg.data.size() >= 4 + 32 + 32 + 32,
             "not enough data in bridge_message_v0 of application type 0xdc4653f4");
 
         uint64_t dest_acc;
@@ -478,9 +481,9 @@ void evmutil::handle_endorser_stakes(const bridge_message_v0 &msg, uint64_t delt
             endrmng::evmstake_action evmstake_act(config.endrmng_account, {{receiver_account(), "active"_n}});
             evmstake_act.send(get_self(), make_key160(msg.sender),make_key160(sender_addr.bytes, kAddressLength), dest_acc, eosio::asset(dest_amount, config.evm_gas_token_symbol));
         }
-        
+
     } else if (app_type == 0xec8d3269) /* withdraw(address,uint256,address) */ {
-        check(msg.data.size() >= 4 + 32 + 32 + 32, 
+        check(msg.data.size() >= 4 + 32 + 32 + 32,
             "not enough data in bridge_message_v0 of application type 0xec8d3269");
 
         uint64_t dest_acc;
@@ -491,7 +494,7 @@ void evmutil::handle_endorser_stakes(const bridge_message_v0 &msg, uint64_t delt
 
         evmc::address sender_addr;
         readEvmAddress(msg.data, 4 + 32 + 32, sender_addr);
-        
+
         if (is_xsat) {
             endrmng::evmunstkxsat_action evmunstkxsat_act(config.endrmng_account, {{receiver_account(), "active"_n}});
             evmunstkxsat_act.send(get_self(), make_key160(msg.sender), make_key160(sender_addr.bytes, kAddressLength), dest_acc, eosio::asset(dest_amount, default_xsat_token_symbol));
@@ -501,7 +504,7 @@ void evmutil::handle_endorser_stakes(const bridge_message_v0 &msg, uint64_t delt
             evmunstake_act.send(get_self(), make_key160(msg.sender), make_key160(sender_addr.bytes, kAddressLength), dest_acc, eosio::asset(dest_amount, config.evm_gas_token_symbol));
         }
     } else if (app_type == 0x2b7d501d) /* restake(address,address,uint256,address) */{
-        check(msg.data.size() >= 4 + 32 + 32 + 32 + 32, 
+        check(msg.data.size() >= 4 + 32 + 32 + 32 + 32,
             "not enough data in bridge_message_v0 of application type 0x97fba943");
 
         uint64_t from_acc;
@@ -540,12 +543,12 @@ void evmutil::handle_rewards(const bridge_message_v0 &msg) {
 
     uint32_t app_type = 0;
     memcpy((void *)&app_type, (const void *)&(msg.data[0]), sizeof(app_type));
-    
+
     // 0x42b3c021 : 21c0b342 : claim(address,address)
     // 0xc16fb607 : 07b66fc1 : vdrclaim(address,address)
     // 0x3d7bb560 : 60b57b3d : creditclaim(address,address,address)
     if (app_type == 0x42b3c021) {
-        check(msg.data.size() >= 4 + 32 /*to*/ + 32 /*from*/, 
+        check(msg.data.size() >= 4 + 32 /*to*/ + 32 /*from*/,
             "not enough data in bridge_message_v0 of application type 0x653332e5");
 
         uint64_t dest_acc;
@@ -558,7 +561,7 @@ void evmutil::handle_rewards(const bridge_message_v0 &msg) {
         // seems hit some bug/limitation in the template, need an explicit conversion here.
         claim_act.send(eosio::name(dest_acc));
     } else if (app_type == 0xc16fb607) {
-        check(msg.data.size() >= 4 + 32 /*to*/ + 32 /*from*/, 
+        check(msg.data.size() >= 4 + 32 /*to*/ + 32 /*from*/,
             "not enough data in bridge_message_v0 of application type 0x653332e5");
 
         uint64_t dest_acc;
@@ -570,10 +573,10 @@ void evmutil::handle_rewards(const bridge_message_v0 &msg) {
         endrmng::vdrclaim_action vdrclaim_act(config.endrmng_account, {{receiver_account(), "active"_n}});
         // seems hit some bug/limitation in the template, need an explicit conversion here.
         vdrclaim_act.send(eosio::name(dest_acc));
-    
-    
+
+
     } else if (app_type == 0x3d7bb560) /* creditclaim(address,address,address) */{
-        check(msg.data.size() >= 4 + 32 /*to*/ + 32 /*proxy*/ + 32 /*from*/, 
+        check(msg.data.size() >= 4 + 32 /*to*/ + 32 /*proxy*/ + 32 /*from*/,
             "not enough data in bridge_message_v0 of application type 0x653332e5");
 
         uint64_t dest_acc;
@@ -587,7 +590,7 @@ void evmutil::handle_rewards(const bridge_message_v0 &msg) {
 
         endrmng::evmclaim_action evmclaim_act(config.endrmng_account, {{receiver_account(), "active"_n}});
         evmclaim_act.send(get_self(), make_key160(proxy_addr.bytes, kAddressLength), make_key160(sender_addr.bytes, kAddressLength), dest_acc);
-    } 
+    }
     else {
         eosio::check(false, "unsupported bridge_message version");
     }
@@ -619,6 +622,9 @@ void evmutil::onbridgemsg(const bridge_message_t &message) {
     else if (helpers.xsat_deposit_address && helpers.xsat_deposit_address.value() == msg.sender) {
         // Reuse old logic. We KNOW the target is XSAT and delta-precision is 10
         handle_endorser_stakes(msg, 10, true, true);
+    }
+    else if (helpers.gas_funds_address && helpers.gas_funds_address.value() == msg.sender){
+        handle_gasfunds(msg);
     }
     else {
         checksum256 addr_key = make_key(msg.sender);
@@ -679,7 +685,7 @@ void evmutil::setdepfee(std::string proxy_address, const eosio::asset &fee) {
     auto token_table_iter = index.find(addr_key);
 
     check(token_table_iter != index.end() && token_table_iter->address == address_bytes, "ERC-20 token not registerred");
-    
+
     intx::uint256 fee_evm = fee.amount;
     fee_evm *= get_minimum_natively_representable(config);
 
@@ -695,7 +701,7 @@ void evmutil::setdepfee(std::string proxy_address, const eosio::asset &fee) {
     call_data.insert(call_data.end(), func_, func_ + sizeof(func_));
     pack_uint256(call_data, fee_evm);
 
-    bytes value_zero; 
+    bytes value_zero;
     value_zero.resize(32, 0);
 
     evm_runtime::call_action call_act(config.evm_account, {{receiver_account(), "active"_n}});
@@ -714,7 +720,7 @@ void evmutil::setlocktime(std::string proxy_address, uint64_t locktime) {
 
     helpers_t helpers = get_helpers();
 
-    if (!((helpers.btc_deposit_address && helpers.btc_deposit_address.value() == *address_bytes) || 
+    if (!((helpers.btc_deposit_address && helpers.btc_deposit_address.value() == *address_bytes) ||
         (helpers.xsat_deposit_address && helpers.xsat_deposit_address.value() == *address_bytes))) {
         checksum256 addr_key = make_key(*address_bytes);
         token_table_t token_table(_self, _self.value);
@@ -736,7 +742,7 @@ void evmutil::setlocktime(std::string proxy_address, uint64_t locktime) {
     call_data.insert(call_data.end(), func_, func_ + sizeof(func_));
     pack_uint256(call_data, intx::uint256(locktime));
 
-    bytes value_zero; 
+    bytes value_zero;
     value_zero.resize(32, 0);
 
     evm_runtime::call_action call_act(config.evm_account, {{receiver_account(), "active"_n}});
@@ -754,7 +760,7 @@ void evmutil::upstakeimpl(std::string proxy_address) {
 
     helpers_t helpers = get_helpers();
 
-    if (!((helpers.btc_deposit_address && helpers.btc_deposit_address.value() == *address_bytes) || 
+    if (!((helpers.btc_deposit_address && helpers.btc_deposit_address.value() == *address_bytes) ||
         (helpers.xsat_deposit_address && helpers.xsat_deposit_address.value() == *address_bytes))) {
         checksum256 addr_key = make_key(*address_bytes);
         token_table_t token_table(_self, _self.value);
@@ -763,7 +769,7 @@ void evmutil::upstakeimpl(std::string proxy_address) {
 
         check(token_table_iter != index.end() && token_table_iter->address == address_bytes, "ERC-20 token not registerred");
     }
-    
+
     impl_contract_table_t contract_table(_self, _self.value);
     eosio::check(contract_table.begin() != contract_table.end(), "no implementaion contract available");
     auto contract_itr = contract_table.end();
@@ -783,20 +789,135 @@ void evmutil::upstakeimpl(std::string proxy_address) {
     // sha(upgradeToAndCall(address,bytes)) == 4f1ef286
     uint8_t func_[4] = {0x4f,0x1e,0xf2,0x86};
     call_data.insert(call_data.end(), func_, func_ + sizeof(func_));
-    
-    
+
+
     call_data.insert(call_data.end(), 32 - kAddressLength, 0);  // padding for address offset 0
-    call_data.insert(call_data.end(), contract_itr->address.begin(), contract_itr->address.end()); 
+    call_data.insert(call_data.end(), contract_itr->address.begin(), contract_itr->address.end());
 
     pack_uint32(call_data, 64);                      // offset 32
     pack_uint32(call_data, 0);                      // offset 64
 
-    bytes value_zero; 
+    bytes value_zero;
     value_zero.resize(32, 0);
 
     evm_runtime::call_action call_act(config.evm_account, {{receiver_account(), "active"_n}});
     call_act.send(receiver_account(), *address_bytes, value_zero, call_data, config.evm_gaslimit);
 }
+
+void evmutil::dpygasfunds() {
+    require_auth(get_self());
+    config_t config = get_config();
+
+    bytes call_data;
+
+    auto reserved_addr = silkworm::make_reserved_address(receiver_account().value);
+
+
+    initialize_data(call_data, solidity::gasfunds::bytecode);
+
+    bytes to = {};
+    bytes value_zero;
+    value_zero.resize(32, 0);
+
+    uint64_t next_nonce = get_next_nonce();
+
+    // required account opened in evm_runtime
+    evm_runtime::call_action call_act(config.evm_account, {{receiver_account(), "active"_n}});
+
+    call_act.send(receiver_account(), to, value_zero, call_data, config.evm_init_gaslimit);
+
+    evmc::address impl_addr = silkworm::create_address(reserved_addr, next_nonce);
+
+    helpers_t helpers = get_helpers();
+
+    bytes impl_addr_bytes;
+    impl_addr_bytes.resize(kAddressLength, 0);
+    memcpy(&(impl_addr_bytes[0]), impl_addr.bytes, kAddressLength);
+    helpers.gas_funds_address = impl_addr_bytes;
+    set_helpers(helpers);
+}
+void evmutil::initgasfund() {
+    require_auth(get_self());
+
+    config_t config = get_config();
+
+    if (!config.gasfund_account.has_value()) {
+        config.gasfund_account = default_gasfund_account;
+    }
+    set_config(config);
+}
+
+void evmutil::setgasfunds(std::string impl_address) {
+    require_auth(get_self());
+    auto address_bytes_opt = from_hex(impl_address);
+    eosio::check(!!address_bytes_opt, "implementation address must be valid 0x EVM address");
+    eosio::check(address_bytes_opt->size() == kAddressLength, "invalid length of implementation address");
+
+    helpers_t helpers = get_helpers();
+    const auto& address_bytes = address_bytes_opt.value();
+    helpers.gas_funds_address = bytes(address_bytes.begin(), address_bytes.end());
+
+    set_helpers(helpers);
+}
+void evmutil::handle_gasfunds(const bridge_message_v0 &msg) {
+    config_t config = get_config();
+    check(msg.data.size() >= 4, "not enough data in bridge_message_v0");
+
+    uint32_t app_type = 0;
+    memcpy((void *)&app_type, (const void *)&(msg.data[0]), sizeof(app_type));
+
+    // 0x136f93b4 : 0xb4936f13 : claim(address,address,uint8)
+    // 0x4380f533 : 33f58043 : enfClaim(address)
+    // 0x031a7229 : 29721a03 : ramsClaim(address)
+    if (app_type == 0x136f93b4) {
+        check(msg.data.size() >= 4 + 32 /*to*/ + 32 /*from*/ ,
+            "not enough data in bridge_message_v0 of application type 0x42b3c021");
+
+        uint64_t dest_acc;
+        readExSatAccount(msg.data, 4, dest_acc);
+
+        evmc::address sender_addr;
+        readEvmAddress(msg.data, 4 + 32, sender_addr);
+
+        intx::uint256 receiver_type;
+        readUint256(msg.data, 4 + 32 + 32, receiver_type);
+
+        gasfunds::evmclaim_action evmclaim_act(config.gasfund_account.value(), {{receiver_account(), "active"_n}});
+        evmclaim_act.send(get_self(), make_key160(msg.sender),make_key160(sender_addr.bytes, kAddressLength), dest_acc, receiver_type);
+    } else if (app_type == 0x4380f533) /* enfClaim(address) */ {
+        check(msg.data.size() >= 4 + 32 /*from*/,
+            "not enough data in bridge_message_v0 of application type 0x33f58043");
+
+        evmc::address dest_acc;
+        readEvmAddress(msg.data, 4, dest_acc);
+
+        // Note that there's a second argument in the call for the sender address.
+        // We currently do not use it. But we collect in the bridge call in case we want to add more sanity checks here.
+
+        gasfunds::evmenfclaim_action evmenfclaim_act(config.gasfund_account.value(), {{receiver_account(), "active"_n}});
+        // seems hit some bug/limitation in the template, need an explicit conversion here.
+        evmenfclaim_act.send(get_self(), make_key160(msg.sender), make_key160(dest_acc.bytes, kAddressLength));
+
+
+    } else if (app_type == 0x031a7229) /* ramsClaim(address) */{
+        check(msg.data.size() >= 4 + 32 /*from*/,
+            "not enough data in bridge_message_v0 of application type 0x29721a03");
+
+        evmc::address dest_acc;
+        readEvmAddress(msg.data, 4, dest_acc);
+
+        // Note that there's a second argument in the call for the sender address.
+        // We currently do not use it. But we collect in the bridge call in case we want to add more sanity checks here.
+
+        gasfunds::evmramsclaim_action evmramsclaim_act(config.gasfund_account.value(), {{receiver_account(), "active"_n}});
+        // seems hit some bug/limitation in the template, need an explicit conversion here.
+        evmramsclaim_act.send(get_self(), make_key160(msg.sender), make_key160(dest_acc.bytes, kAddressLength));
+    }
+    else {
+        eosio::check(false, "unsupported bridge_message version");
+    }
+}
+
 
 inline eosio::name evmutil::receiver_account()const {
     return get_self();
