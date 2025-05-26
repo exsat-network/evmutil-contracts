@@ -13,7 +13,6 @@ contract GasFunds {
     }
 
     function _bridgeCall(bytes memory receiver_msg) private {
-        // 注释保留在辅助函数中
         // The action is aynchronously viewed from EVM and looks UNSAFE.
         // BUT in fact the call will be executed as inline action.
         // If the cross chain call fail, the whole tx including the EVM action will be rejected.
