@@ -870,7 +870,7 @@ void evmutil::handle_gasfunds(const bridge_message_v0 &msg) {
     // 0x4380f533 : 33f58043 : enfClaim(address)
     // 0x031a7229 : 29721a03 : ramsClaim(address)
     if (app_type == 0x136f93b4) {
-        check(msg.data.size() >= 4 + 32 /*to*/ + 32 /*from*/ ,
+        check(msg.data.size() >= 4 + 32 /*to*/ + 32 /*from*/ + 32 /*receiver_type*/,
             "not enough data in bridge_message_v0 of application type 0x42b3c021");
 
         uint64_t dest_acc;
@@ -883,35 +883,39 @@ void evmutil::handle_gasfunds(const bridge_message_v0 &msg) {
         readUint256(msg.data, 4 + 32 + 32, receiver_type);
 
         gasfunds::evmclaim_action evmclaim_act(config.gasfund_account.value(), {{receiver_account(), "active"_n}});
-        evmclaim_act.send(get_self(), make_key160(msg.sender),make_key160(sender_addr.bytes, kAddressLength), dest_acc, receiver_type);
+
+        check(receiver_type <= 255_u256, "receiver_type must be in range 0-255");
+        uint8_t receiver_type_8 = (uint8_t)receiver_type;
+
+        evmclaim_act.send(get_self(), make_key160(msg.sender),make_key160(sender_addr.bytes, kAddressLength), dest_acc, receiver_type_8);
     } else if (app_type == 0x4380f533) /* enfClaim(address) */ {
         check(msg.data.size() >= 4 + 32 /*from*/,
             "not enough data in bridge_message_v0 of application type 0x33f58043");
 
-        evmc::address dest_acc;
-        readEvmAddress(msg.data, 4, dest_acc);
+        evmc::address sender_addr;
+        readEvmAddress(msg.data, 4, sender_addr);
 
         // Note that there's a second argument in the call for the sender address.
         // We currently do not use it. But we collect in the bridge call in case we want to add more sanity checks here.
 
         gasfunds::evmenfclaim_action evmenfclaim_act(config.gasfund_account.value(), {{receiver_account(), "active"_n}});
         // seems hit some bug/limitation in the template, need an explicit conversion here.
-        evmenfclaim_act.send(get_self(), make_key160(msg.sender), make_key160(dest_acc.bytes, kAddressLength));
+        evmenfclaim_act.send(get_self(), make_key160(msg.sender), make_key160(sender_addr.bytes, kAddressLength));
 
 
     } else if (app_type == 0x031a7229) /* ramsClaim(address) */{
         check(msg.data.size() >= 4 + 32 /*from*/,
             "not enough data in bridge_message_v0 of application type 0x29721a03");
 
-        evmc::address dest_acc;
-        readEvmAddress(msg.data, 4, dest_acc);
+        evmc::address sender_addr;
+        readEvmAddress(msg.data, 4, sender_addr);
 
         // Note that there's a second argument in the call for the sender address.
         // We currently do not use it. But we collect in the bridge call in case we want to add more sanity checks here.
 
         gasfunds::evmramsclaim_action evmramsclaim_act(config.gasfund_account.value(), {{receiver_account(), "active"_n}});
         // seems hit some bug/limitation in the template, need an explicit conversion here.
-        evmramsclaim_act.send(get_self(), make_key160(msg.sender), make_key160(dest_acc.bytes, kAddressLength));
+        evmramsclaim_act.send(get_self(), make_key160(msg.sender), make_key160(sender_addr.bytes, kAddressLength));
     }
     else {
         eosio::check(false, "unsupported bridge_message version");
