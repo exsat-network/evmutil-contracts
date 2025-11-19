@@ -749,6 +749,46 @@ void evmutil::setlocktime(std::string proxy_address, uint64_t locktime) {
     call_act.send(receiver_account(), *address_bytes, value_zero, call_data, config.evm_gaslimit);
 }
 
+void evmutil::setlockmngr(std::string proxy_address, std::string manager_address) {
+    require_auth(get_self());
+
+    config_t config = get_config();
+
+
+    auto address_bytes = from_hex(proxy_address);
+    eosio::check(!!address_bytes, "token address must be valid 0x EVM address");
+    eosio::check(address_bytes->size() == kAddressLength, "invalid length of token address");
+
+    helpers_t helpers = get_helpers();
+
+    if (!((helpers.btc_deposit_address && helpers.btc_deposit_address.value() == *address_bytes) ||
+        (helpers.xsat_deposit_address && helpers.xsat_deposit_address.value() == *address_bytes))) {
+        checksum256 addr_key = make_key(*address_bytes);
+        token_table_t token_table(_self, _self.value);
+        auto index = token_table.get_index<"by.address"_n>();
+        auto token_table_iter = index.find(addr_key);
+
+        check(token_table_iter != index.end() && token_table_iter->address == address_bytes, "ERC-20 token not registerred");
+    }
+
+    auto manager_address_bytes = from_hex(manager_address);
+    eosio::check(!!manager_address_bytes, "address must be valid 0x EVM address");
+    eosio::check(manager_address_bytes->size() == kAddressLength, "invalid length of address");
+
+    bytes call_data;
+    // sha(setLockManager(address)) == 0xdeedfdbd
+    uint8_t func_[4] = {0xde,0xed,0xfd,0xbd};
+    call_data.insert(call_data.end(), func_, func_ + sizeof(func_));
+    call_data.insert(call_data.end(), 32 - kAddressLength, 0);  // padding for address
+    call_data.insert(call_data.end(), manager_address_bytes->begin(), manager_address_bytes->end());
+
+    bytes value_zero;
+    value_zero.resize(32, 0);
+
+    evm_runtime::call_action call_act(config.evm_account, {{receiver_account(), "active"_n}});
+    call_act.send(receiver_account(), *address_bytes, value_zero, call_data, config.evm_gaslimit);
+}
+
 void evmutil::upstakeimpl(std::string proxy_address) {
     require_auth(get_self());
 

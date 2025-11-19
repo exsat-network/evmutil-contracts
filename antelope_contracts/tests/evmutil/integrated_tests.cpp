@@ -327,6 +327,32 @@ struct it_tester : evmutil_tester {
         }
     }
 
+    void setExtraLock(evm_eoa& from, name validator, evm_eoa& user, bool value) {
+        auto target = evmc::from_hex<evmc::address>(stake_address);
+
+        auto txn = generate_tx(*target, 0, 500'000);
+        // setExtraLock(address,address,bool) = 05773015
+        txn.data = evmc::from_hex("0x05773015").value();
+        auto reserved_addr = silkworm::make_reserved_address(validator.to_uint64_t());
+
+        auto to = evmc::from_hex<evmc::address>(user.address_0x());
+
+        txn.data += evmc::from_hex(address_str32(reserved_addr)).value();      // param1 (to: address)
+        txn.data += evmc::from_hex(address_str32(*to)).value();      // param1 (to: address)
+        txn.data += evmc::from_hex(uint256_str32(value?1:0)).value();  // param2 (value: bool)
+
+        auto old_nonce = from.next_nonce;
+        from.sign(txn);
+
+        try {
+            auto r = pushtx(txn);
+            // dlog("action trace: ${a}", ("a", r));
+        } catch (...) {
+            from.next_nonce = old_nonce;
+            throw;
+        }
+    }
+
     void stake(evm_eoa& from, name validator, intx::uint256 amount, intx::uint256 fee) {
         auto target = evmc::from_hex<evmc::address>(stake_address);
 
@@ -1950,6 +1976,134 @@ try {
 
     claim2(evm1, "alice"_n, 0);
     produce_block();
+
+}
+FC_LOG_AND_RETHROW()
+
+BOOST_FIXTURE_TEST_CASE(it_extra_lock, it_tester)
+try {
+    // Change target for this test
+    //stake_address = xsat_deposit_address;
+
+    auto proxy = evmc::from_hex<evmc::address>(stake_address);
+    push_action(endrmng_account,
+                    "reset"_n,
+                    endrmng_account,
+                    mvo()("proxy",make_key(proxy->bytes, 20))("staker",make_key(evm1.address.bytes, 20))("validator","alice"_n)("test_xsat",false));
+    produce_block();
+
+
+    // Give evm1 some EOS
+    transfer_token(eos_token_account, "alice"_n, evm_account, make_asset(100'00000000, eos_token_symbol), evm1.address_0x().c_str());
+
+    produce_block();
+    push_action(evmutil_account, "setlocktime"_n, evmutil_account, mvo()("proxy_address",stake_address)("locktime",0));
+    produce_block();
+    auto token_addr = *evmc::from_hex<evmc::address>(xbtc_address);
+    
+    auto tx = generate_tx(token_addr, intx::exp(10_u256, intx::uint256(18))*2 ,10'0000);
+    evm1.sign(tx);
+    pushtx(tx);
+
+    produce_block();
+
+    auto bal = balanceOf(evm1.address_0x().c_str());
+    BOOST_REQUIRE_MESSAGE(bal == intx::exp(10_u256, intx::uint256(18))*2, std::string("balance: ") + intx::to_string(bal));
+
+
+    approve(evm1, intx::exp(10_u256, intx::uint256(18)));
+    produce_block();
+
+
+    push_action(evmutil_account, "setlockmngr"_n, evmutil_account, mvo()("proxy_address",stake_address)("manager_address",evm1.address_0x()));
+    produce_block();
+
+    setExtraLock(evm1, "alice"_n, evm1, true);
+
+    produce_block();
+
+    auto fee = depFee();
+    produce_block();
+
+    assertstake(0,evm1);
+
+    stake(evm1, "alice"_n, intx::exp(10_u256, intx::uint256(18)), fee);
+    produce_block();
+
+    // Shall fail
+    assertstake(0,evm1);
+
+    setExtraLock(evm1, "alice"_n, evm1, false);
+
+    produce_block();
+
+    stake(evm1, "alice"_n, intx::exp(10_u256, intx::uint256(18)), fee);
+    produce_block();
+
+    assertstake(1'00000000,evm1);
+
+    bal = balanceOf(evm1.address_0x().c_str());
+    BOOST_REQUIRE_MESSAGE(bal == intx::exp(10_u256, intx::uint256(18)), std::string("balance: ") + intx::to_string(bal));
+
+    produce_block();
+
+    BOOST_REQUIRE_EXCEPTION(
+        claim(evm1, "bob"_n),
+        eosio_assert_message_exception, 
+        eosio_assert_message_is("validator not found"));
+
+    setExtraLock(evm1, "alice"_n, evm1, true);
+
+    produce_block();
+
+    restake(evm1, "alice"_n, "bob"_n, intx::exp(10_u256, intx::uint256(18)));
+    produce_block();
+
+    // restake should fail
+    assertval("alice"_n);
+    BOOST_REQUIRE_EXCEPTION(
+        assertval("bob"_n),
+        eosio_assert_message_exception, 
+        eosio_assert_message_is("validator not correct"));
+    
+
+    claim(evm1, "alice"_n);
+    produce_block();
+
+    withdraw(evm1,"alice"_n,  intx::exp(10_u256, intx::uint256(18)));
+    produce_block();
+
+    // Shall fail
+    assertstake(1'00000000,evm1);
+
+
+    setExtraLock(evm1, "alice"_n, evm1, false);
+
+    produce_block();
+
+    restake(evm1, "alice"_n, "bob"_n, intx::exp(10_u256, intx::uint256(18)));
+    produce_block();
+
+    assertval("bob"_n);
+    
+    BOOST_REQUIRE_EXCEPTION(
+        assertval("alice"_n),
+        eosio_assert_message_exception, 
+        eosio_assert_message_is("validator not correct"));
+
+    withdraw(evm1,"bob"_n,  intx::exp(10_u256, intx::uint256(18)));
+    produce_block();
+
+    bal = balanceOf(evm1.address_0x().c_str());
+    BOOST_REQUIRE_MESSAGE(bal == intx::exp(10_u256, intx::uint256(18)), std::string("balance: ") + intx::to_string(bal));
+
+    produce_block();
+
+    claimPendingFunds(evm1, "bob"_n);
+    produce_block();
+
+    bal = balanceOf(evm1.address_0x().c_str());
+    BOOST_REQUIRE_MESSAGE(bal == intx::exp(10_u256, intx::uint256(18))*2, std::string("balance: ") + intx::to_string(bal));
 
 }
 FC_LOG_AND_RETHROW()
