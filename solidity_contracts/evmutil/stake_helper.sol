@@ -1387,6 +1387,9 @@ contract StakeHelper is Initializable, UUPSUpgradeable {
     bool notBTC; // default to false
     bool isValidatorDeposits; // default to false
 
+    address lockManager;
+    mapping(address => mapping(address => bool)) public extraLock;
+
     function initialize(address _linkedEOSAddress, address _evmAddress, IERC20 _linkedERC20, uint256 _depositFee, bool _notBTC, bool _isValidatorDeposits) initializer public {
         __UUPSUpgradeable_init();
 
@@ -1528,8 +1531,19 @@ contract StakeHelper is Initializable, UUPSUpgradeable {
         lockTime = _lockTime;
     }
 
+    function setLockManager(address _manager) public {
+        require(msg.sender == linkedEOSAddress, "Bridge: only linked EOS address can set lock manager");
+        lockManager = _manager;
+    }
+
+    function setExtraLock(address _target, address _user, bool _value) public {
+        require(msg.sender == lockManager, "Bridge: only lock manager can set extra lock");
+        extraLock[_target][_user] = _value;
+    }
+
     function deposit(address _target, uint256 _amount) public payable {
         StakeInfo storage stake = stakeInfo[_target][msg.sender];
+        require(extraLock[_target][msg.sender] == false, "Deposit: extra lock is imposed");
         require(msg.value == depositFee, "Deposit: must pay exact amount of deposit fee");
         if (_amount > 0) {
             linkedERC20.safeTransferFrom(address(msg.sender), address(this), _amount);
@@ -1549,6 +1563,9 @@ contract StakeHelper is Initializable, UUPSUpgradeable {
     function restake(address _from, address _to, uint256 _amount) external {
         require(!isValidatorDeposits, "Forbidden");
         StakeInfo storage stakeFrom = stakeInfo[_from][msg.sender];
+
+        require(extraLock[_from][msg.sender] == false, "Restake: extra lock is imposed on from");
+        require(extraLock[_to][msg.sender] == false, "Withdraw: extra lock is imposed on to");
 
         require(_amount <= stakeFrom.amount, "Restake: cannot restake more than deposited amound");
 
@@ -1589,6 +1606,8 @@ contract StakeHelper is Initializable, UUPSUpgradeable {
 
     function withdraw(address _target, uint256 _amount) external {
         StakeInfo storage stake = stakeInfo[_target][msg.sender];
+
+        require(extraLock[_target][msg.sender] == false, "Withdraw: extra lock is imposed");
 
         require(_amount <= stake.amount, "Withdraw: cannot withdraw more than deposited amound");
 
@@ -1839,6 +1858,7 @@ contract StakeHelper is Initializable, UUPSUpgradeable {
     function depositWithBTC(address _target) external payable {
         require(!notBTC, "Linked Token is not XBTC.");
         require(msg.value > depositFee, "Deposit: amount must be greater than amount of deposit fee");
+        require(extraLock[_target][msg.sender] == false, "deposit: extra lock is imposed");
         uint256 amount = msg.value - depositFee;
         // Record the initial ERC20 balance
         uint256 initialBalance = linkedERC20.balanceOf(address(this));
@@ -1872,6 +1892,7 @@ contract StakeHelper is Initializable, UUPSUpgradeable {
     function reDelegatePendingFunds(address _newTarget) external {
         require(!isValidatorDeposits, "Forbidden");
         require(_newTarget != address(0), "Invalid target address");
+        require(extraLock[_newTarget][msg.sender] == false, "deposit: extra lock is imposed");
 
         address _user = msg.sender;
         uint256 reDelegateAmount = 0;
@@ -1928,6 +1949,7 @@ contract StakeHelper is Initializable, UUPSUpgradeable {
     function authorizeTransfer(address _operator, address _fromValidator, uint256 _amount) external {
         require(!isValidatorDeposits, "Forbidden");
         require(_amount > 0, "Approve: amount must be greater than zero");
+        require(extraLock[_fromValidator][msg.sender] == false, "transfer: extra lock is imposed");
         StakeInfo storage stake = stakeInfo[_fromValidator][msg.sender];
         require(_amount <= stake.amount, "Approve: insufficient stake");
 
@@ -1939,6 +1961,8 @@ contract StakeHelper is Initializable, UUPSUpgradeable {
 
     function performTransfer(address _user, address _fromValidator, address _toValidator, uint256 _amount) external {
         require(!isValidatorDeposits, "Forbidden");
+        require(extraLock[_fromValidator][_user] == false, "transfer: extra lock is imposed");
+        require(extraLock[_toValidator][msg.sender] == false, "transfer: extra lock is imposed");
         TransferAuthorization storage auth = transferAuthorizations[_user][msg.sender];
         require(auth.exists, "Permit: no authorization found");
         require(auth.amount == _amount, "Permit: amount mismatch");

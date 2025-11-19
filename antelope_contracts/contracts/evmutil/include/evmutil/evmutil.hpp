@@ -203,6 +203,15 @@ class [[eosio::contract]] evmutil : public contract {
 
     [[eosio::action]] void initgasfund();
 
+    /**
+     * @brief Set extra lock manager
+     * 
+     * @auth self
+     * 
+     * @param proxy_address Target contract address
+     * @param manager_address New manager address
+     */
+    [[eosio::action]] void setlockmngr(std::string proxy_address, std::string manager_address);
 
 
     // Public Helpers
